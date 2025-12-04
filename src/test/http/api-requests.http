@@ -1,0 +1,52 @@
+### 1. 회원가입
+POST http://localhost:8080/auth/signup
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123",
+  "userRole": "USER"
+}
+
+### 2. 로그인 (토큰 발급)
+POST http://localhost:8080/auth/signin
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+> {%
+    if (response.body && response.body.bearerToken) {
+        client.global.set("accessToken", response.body.bearerToken)
+    } else {
+        client.global.set("accessToken", "")
+    }
+%}
+
+### 3. POST /todos - 1
+POST http://localhost:8080/todos
+Content-Type: application/json
+Authorization: {{accessToken}}
+
+{
+  "title": "Spring Boot 학습하기",
+  "contents": "Spring Boot의 기본 개념과 REST API 개발 방법을 학습한다."
+}
+
+### 3. POST /todos - 2
+POST http://localhost:8080/todos
+Content-Type: application/json
+Authorization: {{accessToken}}
+
+{
+"title": "Spring Data JPA 학습하기",
+"contents": "Spring Data JPA의 기본 개념과 방법을 학습한다."
+}
+
+### TODO-3 확인
+### GET /todos - 모든 할일 목록 조회 (페이지네이션)
+GET http://localhost:8080/todos?page=1&size=10
+Content-Type: application/json
+Authorization: {{accessToken}}
