@@ -1,5 +1,6 @@
 package org.example.expert.client;
 
+import lombok.RequiredArgsConstructor;
 import org.example.expert.client.dto.WeatherDto;
 import org.example.expert.domain.common.exception.ServerException;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -14,13 +15,11 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 @Component
+@RequiredArgsConstructor
 public class WeatherClient {
 
+    // TODO-6
     private final RestTemplate restTemplate;
-
-    public WeatherClient(RestTemplateBuilder builder) {
-        this.restTemplate = builder.build();
-    }
 
     public String getTodayWeather() {
         ResponseEntity<WeatherDto[]> responseEntity =

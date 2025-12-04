@@ -12,22 +12,24 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.expert.domain.user.enums.UserRole;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+// TODO-6
 @Slf4j
 @RequiredArgsConstructor
-public class JwtFilter implements Filter {
+public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
-        HttpServletRequest httpRequest = (HttpServletRequest) request;
-        HttpServletResponse httpResponse = (HttpServletResponse) response;
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
+        HttpServletRequest httpRequest = request;
+        HttpServletResponse httpResponse = response;
 
         String url = httpRequest.getRequestURI();
 

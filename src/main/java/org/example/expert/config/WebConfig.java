@@ -15,8 +15,22 @@ import java.util.List;
 @RequiredArgsConstructor
 public class WebConfig implements WebMvcConfigurer {
 
+    private final AdminAccessInterceptor adminAccessInterceptor;
+
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
         resolvers.add(new AuthUserArgumentResolver());
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(adminAccessInterceptor)
+                .addPathPatterns("/admin/users/**");
+    }
+
+    // TODO-6
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
     }
 }
