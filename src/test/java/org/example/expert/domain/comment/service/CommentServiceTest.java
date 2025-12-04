@@ -53,6 +53,25 @@ class CommentServiceTest {
     }
 
     @Test
+    public void comment_목록_조회가_정상적으로_처리된다() {
+        // given
+        long todoId = 1;
+        User user = new User("email@test.com", "password", UserRole.USER);
+        Todo todo = new Todo("title", "title", "contents", user);
+        Comment comment = new Comment("contents", user, todo);
+
+        given(commentRepository.findByTodoIdWithUser(anyLong())).willReturn(java.util.List.of(comment));
+
+        // when
+        var result = commentService.getComments(todoId);
+
+        // then
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("contents", result.get(0).getContents());
+    }
+
+    @Test
     public void comment를_정상적으로_등록한다() {
         // given
         long todoId = 1;
