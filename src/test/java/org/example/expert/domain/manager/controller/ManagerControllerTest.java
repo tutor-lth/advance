@@ -1,46 +1,54 @@
 package org.example.expert.domain.manager.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
+import org.example.expert.config.AuthUserArgumentResolver;
+import org.example.expert.config.GlobalExceptionHandler;
 import org.example.expert.config.JwtUtil;
-import org.example.expert.domain.common.dto.AuthUser;
 import org.example.expert.domain.manager.dto.request.ManagerSaveRequest;
 import org.example.expert.domain.manager.dto.response.ManagerResponse;
 import org.example.expert.domain.manager.dto.response.ManagerSaveResponse;
 import org.example.expert.domain.manager.service.ManagerService;
 import org.example.expert.domain.user.dto.response.UserResponse;
-import org.example.expert.domain.user.enums.UserRole;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(controllers = ManagerController.class)
 class ManagerControllerTest {
 
-    @Mock
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
     private ManagerService managerService;
 
-    @Mock
+    @MockBean
     private JwtUtil jwtUtil;
 
-    @InjectMocks
-    private ManagerController managerController;
+    @MockBean
+    private AuthUserArgumentResolver authUserArgumentResolver;
+
+    @MockBean
+    private GlobalExceptionHandler globalExceptionHandler;
 
     @Test
-    void 매니저_저장이_정상적으로_처리된다() {
+    void 매니저_저장이_정상적으로_처리된다() throws Exception {
         // given
-        AuthUser authUser = new AuthUser(1L, "test@test.com", UserRole.USER);
         long todoId = 1L;
         ManagerSaveRequest request = new ManagerSaveRequest(2L);
 
@@ -50,22 +58,23 @@ class ManagerControllerTest {
             userResponse
         );
 
-        given(managerService.saveManager(any(AuthUser.class), anyLong(), any(ManagerSaveRequest.class)))
+        given(managerService.saveManager(any(), anyLong(), any(ManagerSaveRequest.class)))
             .willReturn(expectedResponse);
 
-        // when
-        ResponseEntity<ManagerSaveResponse> response = managerController.saveManager(authUser, todoId, request);
-
-        // then
-        assertNotNull(response);
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
-        assertEquals(2L, response.getBody().getUser().getId());
-        verify(managerService).saveManager(authUser, todoId, request);
+        // when & then
+        mockMvc.perform(post("/todos/{todoId}/managers", todoId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .requestAttr("userId", 1L)
+                .requestAttr("email", "test@test.com")
+                .requestAttr("userRole", "USER"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(1L))
+            .andExpect(jsonPath("$.user.id").value(2L));
     }
 
     @Test
-    void 매니저_목록_조회가_정상적으로_처리된다() {
+    void 매니저_목록_조회가_정상적으로_처리된다() throws Exception {
         // given
         long todoId = 1L;
 
@@ -79,19 +88,15 @@ class ManagerControllerTest {
 
         given(managerService.getManagers(anyLong())).willReturn(expectedList);
 
-        // when
-        ResponseEntity<List<ManagerResponse>> response = managerController.getMembers(todoId);
-
-        // then
-        assertNotNull(response);
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-        verify(managerService).getManagers(todoId);
+        // when & then
+        mockMvc.perform(get("/todos/{todoId}/managers", todoId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].id").value(1L))
+            .andExpect(jsonPath("$[0].user.id").value(1L));
     }
 
     @Test
-    void 매니저_삭제가_정상적으로_처리된다() {
+    void 매니저_삭제가_정상적으로_처리된다() throws Exception {
         // given
         String bearerToken = "Bearer test.jwt.token";
         long todoId = 1L;
@@ -102,11 +107,9 @@ class ManagerControllerTest {
         given(claims.getSubject()).willReturn(String.valueOf(userId));
         given(jwtUtil.extractClaims("test.jwt.token")).willReturn(claims);
 
-        // when
-        managerController.deleteManager(bearerToken, todoId, managerId);
-
-        // then
-        verify(jwtUtil).extractClaims("test.jwt.token");
-        verify(managerService).deleteManager(userId, todoId, managerId);
+        // when & then
+        mockMvc.perform(delete("/todos/{todoId}/managers/{managerId}", todoId, managerId)
+                .header("Authorization", bearerToken))
+            .andExpect(status().isOk());
     }
 }

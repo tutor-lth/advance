@@ -1,42 +1,50 @@
 package org.example.expert.domain.todo.controller;
 
-import org.example.expert.domain.common.dto.AuthUser;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.example.expert.config.AuthUserArgumentResolver;
+import org.example.expert.config.GlobalExceptionHandler;
 import org.example.expert.domain.todo.dto.request.TodoSaveRequest;
 import org.example.expert.domain.todo.dto.response.TodoResponse;
 import org.example.expert.domain.todo.dto.response.TodoSaveResponse;
 import org.example.expert.domain.todo.service.TodoService;
 import org.example.expert.domain.user.dto.response.UserResponse;
-import org.example.expert.domain.user.enums.UserRole;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(controllers = TodoController.class)
 class TodoControllerTest {
 
-    @Mock
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
     private TodoService todoService;
 
-    @InjectMocks
-    private TodoController todoController;
+    @MockBean
+    private AuthUserArgumentResolver authUserArgumentResolver;
+
+    @MockBean
+    private GlobalExceptionHandler globalExceptionHandler;
 
     @Test
-    void Todo_생성이_정상적으로_처리된다() {
+    void Todo_생성이_정상적으로_처리된다() throws Exception {
         // given
-        AuthUser authUser = new AuthUser(1L, "test@test.com", UserRole.USER);
         TodoSaveRequest request = new TodoSaveRequest("Title", "Contents");
 
         UserResponse userResponse = new UserResponse(1L, "test@test.com");
@@ -48,23 +56,25 @@ class TodoControllerTest {
             userResponse
         );
 
-        given(todoService.saveTodo(any(AuthUser.class), any(TodoSaveRequest.class)))
+        given(todoService.saveTodo(any(), any(TodoSaveRequest.class)))
             .willReturn(expectedResponse);
 
-        // when
-        ResponseEntity<TodoSaveResponse> response = todoController.saveTodo(authUser, request);
-
-        // then
-        assertNotNull(response);
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
-        assertEquals("Title", response.getBody().getTitle());
-        assertEquals("Contents", response.getBody().getContents());
-        verify(todoService).saveTodo(authUser, request);
+        // when & then
+        mockMvc.perform(post("/todos")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .requestAttr("userId", 1L)
+                .requestAttr("email", "test@test.com")
+                .requestAttr("userRole", "USER"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(1L))
+            .andExpect(jsonPath("$.title").value("Title"))
+            .andExpect(jsonPath("$.contents").value("Contents"))
+            .andExpect(jsonPath("$.weather").value("Sunny"));
     }
 
     @Test
-    void Todo_목록_조회가_정상적으로_처리된다() {
+    void Todo_목록_조회가_정상적으로_처리된다() throws Exception {
         // given
         int page = 1;
         int size = 10;
@@ -84,19 +94,19 @@ class TodoControllerTest {
 
         given(todoService.getTodos(anyInt(), anyInt())).willReturn(expectedPage);
 
-        // when
-        ResponseEntity<Page<TodoResponse>> response = todoController.getTodos(page, size);
-
-        // then
-        assertNotNull(response);
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().getTotalElements());
-        verify(todoService).getTodos(page, size);
+        // when & then
+        mockMvc.perform(get("/todos")
+                .param("page", String.valueOf(page))
+                .param("size", String.valueOf(size)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.content").isArray())
+            .andExpect(jsonPath("$.content[0].id").value(1L))
+            .andExpect(jsonPath("$.content[0].title").value("Title"))
+            .andExpect(jsonPath("$.content[0].contents").value("Contents"));
     }
 
     @Test
-    void 특정_Todo_조회가_정상적으로_처리된다() {
+    void 특정_Todo_조회가_정상적으로_처리된다() throws Exception {
         // given
         long todoId = 1L;
 
@@ -113,15 +123,12 @@ class TodoControllerTest {
 
         given(todoService.getTodo(anyLong())).willReturn(expectedResponse);
 
-        // when
-        ResponseEntity<TodoResponse> response = todoController.getTodo(todoId);
-
-        // then
-        assertNotNull(response);
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
-        assertEquals(todoId, response.getBody().getId());
-        assertEquals("Title", response.getBody().getTitle());
-        verify(todoService).getTodo(todoId);
+        // when & then
+        mockMvc.perform(get("/todos/{todoId}", todoId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(todoId))
+            .andExpect(jsonPath("$.title").value("Title"))
+            .andExpect(jsonPath("$.contents").value("Contents"))
+            .andExpect(jsonPath("$.weather").value("Sunny"));
     }
 }

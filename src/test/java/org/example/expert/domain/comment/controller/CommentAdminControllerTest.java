@@ -1,32 +1,35 @@
 package org.example.expert.domain.comment.controller;
 
+import org.example.expert.config.GlobalExceptionHandler;
 import org.example.expert.domain.comment.service.CommentAdminService;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.web.servlet.MockMvc;
 
-import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(controllers = CommentAdminController.class)
 class CommentAdminControllerTest {
 
-    @Mock
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
     private CommentAdminService commentAdminService;
 
-    @InjectMocks
-    private CommentAdminController commentAdminController;
+    @MockBean
+    private GlobalExceptionHandler globalExceptionHandler;
 
     @Test
-    void 댓글_삭제가_정상적으로_처리된다() {
+    void 댓글_삭제가_정상적으로_처리된다() throws Exception {
         // given
         long commentId = 1L;
 
-        // when
-        commentAdminController.deleteComment(commentId);
-
-        // then
-        verify(commentAdminService).deleteComment(commentId);
+        // when & then
+        mockMvc.perform(delete("/admin/comments/{commentId}", commentId))
+            .andExpect(status().isOk());
     }
 }

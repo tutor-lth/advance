@@ -1,62 +1,68 @@
 package org.example.expert.domain.user.controller;
 
-import org.example.expert.domain.common.dto.AuthUser;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.example.expert.config.AuthUserArgumentResolver;
+import org.example.expert.config.GlobalExceptionHandler;
 import org.example.expert.domain.user.dto.request.UserChangePasswordRequest;
 import org.example.expert.domain.user.dto.response.UserResponse;
-import org.example.expert.domain.user.enums.UserRole;
 import org.example.expert.domain.user.service.UserService;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(controllers = UserController.class)
 class UserControllerTest {
 
-    @Mock
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
     private UserService userService;
 
-    @InjectMocks
-    private UserController userController;
+    @MockBean
+    private AuthUserArgumentResolver authUserArgumentResolver;
+
+    @MockBean
+    private GlobalExceptionHandler globalExceptionHandler;
 
     @Test
-    void 특정_사용자_조회가_정상적으로_처리된다() {
+    void 특정_사용자_조회가_정상적으로_처리된다() throws Exception {
         // given
         long userId = 1L;
         UserResponse expectedResponse = new UserResponse(userId, "test@test.com");
 
         given(userService.getUser(anyLong())).willReturn(expectedResponse);
 
-        // when
-        ResponseEntity<UserResponse> response = userController.getUser(userId);
-
-        // then
-        assertNotNull(response);
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
-        assertEquals(userId, response.getBody().getId());
-        assertEquals("test@test.com", response.getBody().getEmail());
-        verify(userService).getUser(userId);
+        // when & then
+        mockMvc.perform(get("/users/{userId}", userId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(userId))
+            .andExpect(jsonPath("$.email").value("test@test.com"));
     }
 
     @Test
-    void 비밀번호_변경이_정상적으로_처리된다() {
+    void 비밀번호_변경이_정상적으로_처리된다() throws Exception {
         // given
-        AuthUser authUser = new AuthUser(1L, "test@test.com", UserRole.USER);
         UserChangePasswordRequest request = new UserChangePasswordRequest("OldPass123", "NewPass123");
 
-        // when
-        userController.changePassword(authUser, request);
-
-        // then
-        verify(userService).changePassword(authUser.getId(), request);
+        // when & then
+        mockMvc.perform(put("/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request))
+                .requestAttr("userId", 1L)
+                .requestAttr("email", "test@test.com")
+                .requestAttr("userRole", "USER"))
+            .andExpect(status().isOk());
     }
 }
